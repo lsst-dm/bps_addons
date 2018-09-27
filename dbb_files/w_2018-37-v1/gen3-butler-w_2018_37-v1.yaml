@@ -1,0 +1,14 @@
+datastore:
+  cls: lsst.daf.butler.datastores.posixDatastore.PosixDatastore
+  records:
+    table: PosixDatastoreRecords
+  root: jobrepo
+  templates:
+          modified_raw: "{collection}/{datasetType}/{camera:?}-{exposure:?}-{sensor:03?}-r${reqnum}_p${attnum:2}-modraw"
+          calexp: "{collection}/{datasetType}/{camera:?}-{visit:?}-{sensor:03?}-r${reqnum}_p${attnum:2}-calexp"
+registry:
+  cls: lsst.daf.butler.registries.sqliteRegistry.SqliteRegistry
+  db: sqlite:///jobrepo/gen3.sqlite3
+  skypix:
+    cls: lsst.sphgeom.HtmPixelization
+    level: 7

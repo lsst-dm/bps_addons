@@ -1,0 +1,117 @@
+# run the Gen2 get/update header/put code via DESDM framework
+
+<<include $MY_WCL_DIR/operator_info.wcl>>
+
+campaign = TEST
+jira_id = DM-00000
+pipeline = dummy
+pipeprod = mgstack
+pipever = w_2018-33-git
+reqnum = 15
+project = MMG
+
+cam = HSC
+tract = 0
+dateobs = 2013-11-02
+field = STRIPE82L
+filter = HSC-I
+pointing = 671
+visit = 904010
+ccd = 4
+
+unitname = ${cam}-${visit}-${ccd}
+
+job_repo_dir = jobrepo
+ops_run_dir = ${project}/${pipeline}/${campaign}/r${reqnum}/${unitname}/p${attnum:2}
+
+dataset = ci_hsc
+butlerregistry_version = py3-v14_0-v1
+fn_butler_template = mini_butler_templates-py3-v14_0-v1.yaml
+fn_butler_registry_raw = ${dataset}_registry-${butlerregistry_version}.sqlite3
+
+blocklist = dummy
+<block>
+    <dummy>
+        modulelist = test_dummy
+    </dummy>
+</block>
+
+<module>
+    <test_dummy>
+        <exec_1>
+            execname = dummyTask-Gen2.py
+            cmd_hyphen = mixed_gnu
+            used = file.butler_template,file.butler_registry_raw,file.raw
+            was_generated_by = file.img_corr
+            <cmdline>
+                _01 = ${job_repo_dir}
+                output = ${job_repo_dir}
+                doraise = _flag
+                no-versions = _flag
+                id = visit=${visit} ccd=${ccd}
+            </cmdline>
+        </exec_1>
+        <file>
+            <raw>
+                query_table = image
+                query_fields = filetype, visit, ccd
+                output_fields = filename,visit,filter,ccd
+                filetype = raw
+                dirpat = hsc_raw
+                rename_file = HSC-${visit:7}-${ccd:3}.fits
+            </raw>
+            <butler_registry_raw>
+                filename = ${fn_butler_registry_raw}
+                rename_file = registry.sqlite3
+                dirpat = generic_norepo
+                job_enddir = ${job_repo_dir}
+            </butler_registry_raw>
+            <butler_template>
+                filename = ${fn_butler_template}
+                dirpat = generic_norepo
+                job_enddir = config
+            </butler_template>
+            <img_corr>
+                filetype = img_corr
+                filepat = hsc_unit_ccd
+                flabel = CORR
+                fsuffix = fits
+                savefiles = true
+                compress_files = false
+                dirpat = hsc_ccd
+                ops_enddir = calexp
+                job_enddir = corr
+            </img_corr>
+        </file>
+        <wrapper>
+            job_repo_dir = ${job_repo_dir}
+            mapper = lsst.obs.hsc.HscMapper
+            butler_template = ${file.butler_template.fullname}
+        </wrapper>
+        wrappername = genwrap_lsst.py
+        loopobj = file.raw
+        modnamepat = ${modnamepat_visit_ccd_filter}
+        end_mod_dir = ${modulename}/${filter}/${visit}
+    </test_dummy>
+</module>
+
+<directory_pattern>
+    <hsc_raw>
+        #ops =
+        runtime = ${job_repo_dir}/${field}/${dateobs}/${pointing:5}/${filter}
+    </hsc_raw>
+    <hsc_ccd>
+        ops = ${ops_run_dir}/sfm/${filter}/${pointing:5}/${ops_enddir}
+        runtime = ${job_repo_dir}/${pointing:5}/${filter}/${job_enddir}
+    </hsc_ccd>
+    <generic_repo>
+        ops = ${ops_run_dir}/${ops_enddir}
+        runtime = ${job_repo_dir}/${job_enddir}
+    </generic_repo>
+    <generic_norepo>
+        ops = ${ops_run_dir}/${ops_enddir}
+        runtime = ${job_enddir}
+    </generic_norepo>
+</directory_pattern>
+
+modnamepat_visit_ccd_filter = ${unitname}-r${reqnum}p${attnum:2}_${cam}${visit:8}_${filter}_c${ccd:3}_${modulename}
