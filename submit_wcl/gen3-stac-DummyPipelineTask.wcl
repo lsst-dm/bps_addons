@@ -1,0 +1,123 @@
+# Run example RawToCalexpTask pipelineTask via DESDM framework
+
+<<include $MY_WCL_DIR/operator_info.wcl>>
+
+campaign = TEST
+jira_id = DM-00000
+pipeline = pipetask
+pipeprod = bps
+pipever = mxk
+reqnum = 23
+project = MXK
+
+cam = HSC
+tract = 0
+dateobs = 2013-11-02
+field = STRIPE82L
+filter = HSC-I
+pointing = 671
+visit = 904010
+ccd = 4
+
+unitname = ${cam}-${visit}-${ccd}
+ops_run_dir = ${project}/${pipeline}/${campaign}/r${reqnum}/${unitname}/p${attnum:2}
+
+inputcollection = shared/ci_hsc
+outputcollection = ${campaign}
+job_repo_dir = jobrepo
+fn_butler_template = gen3-butler-w_2018_39-v1.yaml
+fn_butler_registry_raw = hsc-gen3-registry-w_2018_39-v1.sqlite3
+
+blocklist = b1
+<block>
+    <b1>
+        modulelist = pipetask1
+    </b1>
+</block>
+
+<module>
+    <pipetask1>
+        <exec_1>
+            execname = stac
+            cmd_hyphen = mixed_gnu
+            used = file.butler_template,file.butler_registry_raw,file.raw
+            was_generated_by = file.img_corr
+            #<cmdline>
+            #   b = ${file.butler_template.fullname}
+            #   i = ${inputcollection}
+            #   o = ${outputcollection}
+            #   t = RawToCalexpTask
+            #   show = graph
+            #</cmdline>
+            <cmdline>
+                _01 = -b ${job_repo_dir}/butler.yaml -i ${inputcollection} -d 'Exposure.exposure = ${visit} and Sensor.sensor = ${ccd}' -o ${outputcollection}
+                _02 = run -t DummyPipelineTask --show=graph
+            </cmdline>
+        </exec_1>
+        <file>
+            <raw>
+                query_table = image
+                query_fields = filetype, visit, ccd
+                output_fields = filename,visit,filter,ccd
+                filetype = hsc_raw
+                dirpat = hsc_raw
+                rename_file = HSC-${visit:7}-${ccd:3}.fits
+            </raw>
+            <butler_registry_raw>
+                filename = ${fn_butler_registry_raw}
+                rename_file = gen3.sqlite3
+                dirpat = generic_norepo
+                job_enddir = ${job_repo_dir}
+            </butler_registry_raw>
+            <butler_template>
+                filename = ${fn_butler_template}
+                dirpat = generic_norepo
+                job_enddir = config
+            </butler_template>
+            <img_corr>
+                filetype = img_corr
+                filepat = modified_raw
+                savefiles = true
+                compress_files = false
+                dirpat = hsc_ccd
+                ops_enddir = modified_raw
+                job_enddir = modified_raw
+            </img_corr>
+        </file>
+        <wrapper>
+            job_repo_dir = ${job_repo_dir}
+            #mapper = lsst.obs.hsc.HscMapper
+            butler_template = ${file.butler_template.fullname}
+        </wrapper>
+        wrappername = genwrap_lsstgen3.py
+        loopobj = file.raw
+        modnamepat = ${modnamepat_visit_ccd_filter}
+        end_mod_dir = ${modulename}/${filter}/${visit}
+    </pipetask1>
+</module>
+
+<filename_pattern>
+    modified_raw = HSC-${visit}-${ccd:3}-r${reqnum}_p${attnum:2}-modraw.fits
+    visit_ccd = HSC-${visit}-${ccd:3}-r${reqnum}_p${attnum:2}-${datasettype}.fits
+</filename_pattern>
+<directory_pattern>
+    <hsc_raw>
+        #ops =
+        runtime = ${job_repo_dir}/${field}/${dateobs}/${pointing:5}/${filter}
+    </hsc_raw>
+    <hsc_ccd>
+        ops = ${ops_run_dir}/sfm/${filter}/${pointing:5}/${ops_enddir}
+        #runtime = ${job_repo_dir}/${pointing:5}/${filter}/${job_enddir}
+        runtime = ${job_repo_dir}/${outputcollection}/${job_enddir}
+    </hsc_ccd>
+    <generic_repo>
+        ops = ${ops_run_dir}/${ops_enddir}
+        runtime = ${job_repo_dir}/${outputcollection}${job_enddir}
+    </generic_repo>
+    <generic_norepo>
+        ops = ${ops_run_dir}/${ops_enddir}
+        runtime = ${job_enddir}
+    </generic_norepo>
+</directory_pattern>
+
+modnamepat_visit_ccd_filter = ${unitname}-r${reqnum}p${attnum:2}_${cam}${visit:8}_${filter}_c${ccd:3}_${modulename}
